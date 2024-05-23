@@ -1,26 +1,23 @@
 local M = {}
 
 function M.telescope() --{{{
-
 end --}}}
 
-require('packer').init { --{{{
-
-} --}}}
+require("packer").init({ --{{{
+}) --}}}
 
 local extend = function(opts) -- {{{
-
 end -- }}}
 
 -- use { 'vim-ctrlspace/vim-ctrlspace', --{{{
 
 -- } --}}}
 
-   -- use { 'vim-ctrlspace/vim-ctrlspace', --{{{
-   --    config = function ()
-   --       vim.g.CtrlSpaceDefaultMappingKey = "<C-space> "
-   --    end
-   -- } --}}}
+-- use { 'vim-ctrlspace/vim-ctrlspace', --{{{
+--    config = function ()
+--       vim.g.CtrlSpaceDefaultMappingKey = "<C-space> "
+--    end
+-- } --}}}
 
 --{{{1 description
 
