@@ -1,9 +1,8 @@
 # Pretty Fold
 
-> :warning: **WARNING**: Neovim v0.7 or higher is required
+> :warning: This is a personal fork of `pretty-fold`.
 >
-> There is a [0.6 branch](https://github.com/anuvyklack/pretty-fold.nvim/tree/0.6)
-> which is lack of some features.
+> Neovim v0.10 or higher is required
 
 **Pretty Fold** is a lua plugin for Neovim which provides framework for easy
 foldtext customization. Filetype specific and foldmethod specific configuration
