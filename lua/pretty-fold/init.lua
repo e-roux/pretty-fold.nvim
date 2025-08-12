@@ -9,6 +9,22 @@ ffi.cdef([[
   extern win_T *curwin;
 ]])
 
+--- Default configuration for pretty-fold.nvim
+---@class DefaultConfig
+---@field fill_char string Character used to fill the fold line
+---@field remove_fold_markers boolean Remove fold markers from the fold string
+---@field keep_indentation boolean Keep the indentation of the content of the fold string
+---|"'delete'" Remove all comment signs from the fold string
+---|"'spaces'" Replace all comment signs with equal number of spaces
+---|false Do nothing with comment signs
+---@field process_comment_signs string|boolean How to process comment signs in the fold string
+---@field comment_signs table Additional comment signs to consider
+---@field stop_words table Patterns to remove from the content fold text section
+--@field sections table Sections of the fold line
+---@field add_close_pattern boolean|string Add close pattern to the fold line
+---@field matchup_patterns table Patterns to match for folding
+---@field ft_ignore table File types to ignore
+
 local M = {
   foldtext = {}, -- Table with all 'foldtext' functions.
   ft_ignore = {}, -- Set with filetypes to be ignored.
@@ -28,28 +44,16 @@ local foldmethods = {
   "diff",
 }
 
+---@type DefaultConfig
 local default_config = {
   fill_char = "•",
   remove_fold_markers = true,
-
-  -- Keep the indentation of the content of the fold string.
   keep_indentation = true,
-
-  -- Possible values:
-  -- "delete" : Delete all comment signs from the fold string.
-  -- "spaces" : Replace all comment signs with equal number of spaces.
-  --  false   : Do nothing with comment signs.
-  ---@type string|boolean
   process_comment_signs = "spaces",
-
-  ---Comment signs additional to '&commentstring' option.
   comment_signs = {},
-
-  -- List of patterns that will be removed from content foldtext section.
   stop_words = {
     "@brief%s*", -- (for cpp) Remove '@brief' and all spaces after.
   },
-
   sections = {
     left = {
       "content",
@@ -72,7 +76,6 @@ local default_config = {
     { "%(", ")" }, -- % to escape lua pattern char
     { "%[", "]" }, -- % to escape lua pattern char
   },
-
   ft_ignore = { "neorg" },
 }
 
@@ -104,16 +107,17 @@ local function fold_text(config)
   local visible_win_width = api.nvim_win_get_width(0) - gutter_width
 
   -- The summation length of all components of the fold text string.
-  local fold_text_len = fn.strdisplaywidth(table.concat(vim.tbl_flatten(vim.tbl_values(r))))
+  local fold_text_str = table.concat(vim.iter(vim.tbl_values(r)):flatten():totable())
+  local fold_text_len = fn.strdisplaywidth(fold_text_str)
 
   r.expansion_str = string.rep(config.fill_char, visible_win_width - fold_text_len)
 
-  return table.concat(vim.tbl_flatten({ r.left, r.expansion_str, r.right }))
+  return table.concat(vim.iter({ r.left, r.expansion_str, r.right }):flatten():totable())
 end
 
 ---Make a ready to use config table with all keys for all foldmethos from the
 ---default config table -and input config table.
----@param config? table
+---@param config? DefaultConfig
 ---@return table
 local function configure(config)
   -- Flag indicating whether current function got a non-empty parameter.
