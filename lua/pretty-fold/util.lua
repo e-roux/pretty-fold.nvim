@@ -28,15 +28,20 @@ end
 ---@param ts table
 ---@return table
 function util.deep_pesc(ts)
-  local escaped_ts = {}
-  for i, s in ipairs(ts) do
-    if type(s) == "string" then
-      escaped_ts[i] = vim.pesc(s)
-    elseif type(s) == "table" then
-      escaped_ts[i] = util.escape_lua_patterns(s)
+  local function recurse(v)
+    if type(v) == "string" then
+      return vim.pesc(v)
+    elseif type(v) == "table" then
+      local out = {}
+      for i, item in ipairs(v) do
+        out[i] = recurse(item)
+      end
+      return out
+    else
+      return v
     end
   end
-  return escaped_ts
+  return recurse(ts)
 end
 
 return util
