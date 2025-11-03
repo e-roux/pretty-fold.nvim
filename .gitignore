@@ -1,0 +1,9 @@
+# Vendored dependencies
+deps/
+
+# Test helpers / generated files
+test/coverage_init.lua
+test/minimal_init.vim
+
+# Misc local files
+review.md
