@@ -93,16 +93,65 @@ local function fold_text(config)
 
   -- Get the text of all components of the fold string.
   for _, lr in ipairs({ "left", "right" }) do
-    for _, sec in ipairs(config.sections[lr] or {}) do
-      sec = require("pretty-fold.components")[sec]
-      table.insert(r[lr], vim.is_callable(sec) and sec(config) or sec)
+    for _, sec_name in ipairs(config.sections[lr] or {}) do
+      local sec = require("pretty-fold.components")[sec_name]
+      if vim.is_callable(sec) then
+        local ok, out = pcall(sec, config)
+        if not ok then
+          vim.notify(string.format("pretty-fold: component '%s' error: %s", tostring(sec_name), tostring(out)), vim.log.levels.ERROR)
+          table.insert(r[lr], "<pretty-fold:error>")
+        else
+          table.insert(r[lr], out)
+        end
+      else
+        table.insert(r[lr], sec)
+      end
     end
   end
 
   ---The width of offset of a window, occupied by line number column,
   ---fold column and sign column.
   ---@type number
-  local gutter_width = ffi.C.win_col_off(ffi.C.curwin)
+  local function compute_gutter_width()
+    -- 1) Fast FFI path, guarded
+    if package.loaded.ffi then
+      local ok, res = pcall(function()
+        return ffi.C.win_col_off(ffi.C.curwin)
+      end)
+      if ok and type(res) == "number" and res >= 0 and res <= api.nvim_win_get_width(0) then
+        return res
+      end
+    end
+
+    -- 2) Public API: getwininfo().textoff
+    local ok2, wininfo = pcall(fn.getwininfo, api.nvim_get_current_win())
+    if ok2 and type(wininfo) == "table" and wininfo[1] and wininfo[1].textoff then
+      local n = tonumber(wininfo[1].textoff)
+      if n and n >= 0 then
+        return n
+      end
+    end
+
+    -- 3) Conservative heuristic fallback
+    local w = 0
+    w = w + (tonumber(vim.wo.foldcolumn) or 0)
+    if vim.wo.number or vim.wo.relativenumber then
+      local lines = api.nvim_buf_line_count(0)
+      local digits = #tostring(lines)
+      w = w + math.max(tonumber(vim.wo.numberwidth) or 1, digits)
+    end
+    local sc = vim.wo.signcolumn
+    if sc and sc ~= 'no' then
+      if sc == 'yes' or sc:match('^yes') then
+        w = w + 2
+      else
+        w = w + 1
+      end
+    end
+    return w
+  end
+
+  local gutter_width = compute_gutter_width()
 
   local visible_win_width = api.nvim_win_get_width(0) - gutter_width
 
