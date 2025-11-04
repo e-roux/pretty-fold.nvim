@@ -8,23 +8,62 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [ubuntu-latest, macos-latest]
         nvim: [stable, nightly]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Cache deps directory
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+          key: ${{ runner.os }}-deps-${{ hashFiles('**/deps/**') }}
+          restore-keys: |
+            ${{ runner.os }}-deps-
+
+      - name: Install Neovim (Ubuntu)
+        if: runner.os == 'Linux'
         run: |
           sudo add-apt-repository -y ppa:neovim-ppa/unstable || true
           sudo apt-get update || true
           sudo apt-get install -y neovim || true
 
-      - name: Setup Neovim
+      - name: Install Neovim (macOS)
+        if: runner.os == 'macOS'
         run: |
-          echo "Neovim version:" && nvim --version
+          brew update || true
+          brew install neovim || true
 
-      - name: Run tests
+      - name: Show versions
         run: |
-          make test
+          nvim --version
+          lua -v || true
+          luacheck --version || true
+          stylua --version || true
+
+      - name: Ensure deps (plenary)
+        run: |
+          mkdir -p deps
+          if [ ! -d "deps/plenary.nvim/.git" ] && [ ! -f "deps/plenary.nvim/plugin/plenary.vim" ]; then \
+            git clone --depth 1 https://github.com/nvim-lua/plenary.nvim deps/plenary.nvim; \
+          else \
+            echo "plenary present"; \
+          fi
+
+      - name: Run luacheck
+        run: |
+          if command -v luacheck >/dev/null 2>&1; then luacheck .; else echo "luacheck not found, skipping"; fi
+
+      - name: Run stylua (format check)
+        run: |
+          if command -v stylua >/dev/null 2>&1; then stylua --check .; else echo "stylua not found, skipping"; fi
+
+      - name: Run unit tests (plenary)
+        env:
+          DEPS_DIR: deps
+        run: |
+          nvim --headless -u test/minimal_init.vim -c "lua require('plenary.test_harness').test_directory('test')" -c "qa!"
