@@ -1,0 +1,20 @@
+{
+  "runtime": {
+    "version": "LuaJIT"
+  },
+  "diagnostics": {
+    "globals": [
+      "vim"
+    ],
+    "disable": [
+      "undefined-global",
+      "deprecated"
+    ]
+  },
+  "workspace": {
+    "library": [
+      "/opt/homebrew/share/nvim/runtime/lua"
+    ],
+    "checkThirdParty": false
+  }
+}
