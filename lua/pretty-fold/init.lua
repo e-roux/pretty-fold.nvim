@@ -24,12 +24,23 @@ ffi.cdef([[
 ---@field add_close_pattern boolean|string Add close pattern to the fold line
 ---@field matchup_patterns table Patterns to match for folding
 ---@field ft_ignore table File types to ignore
+---@field ft table<string,DefaultConfig> Per-filetype configuration sub-tables
+
+---@alias PrettyFold.Config DefaultConfig
 
 local M = {
 	foldtext = {}, -- Table with all 'foldtext' functions.
 	ft_ignore = {}, -- Set with filetypes to be ignored.
-	-- config = {}
 }
+
+--- Set plugin options via this global **before** the plugin is loaded.
+--- Works with vim.pack and any manager that supports an `init` hook.
+--- Note: vim.g does not support Lua functions; use string-based built-in
+--- component names in `sections`. For custom function sections, pass opts
+--- programmatically via the `opts` key if your manager supports it.
+---
+---@type PrettyFold.Config|nil
+vim.g.pretty_fold_opts = vim.g.pretty_fold_opts
 
 -- Labels for each vim foldmethod (:help foldmethod) configuration table and one
 -- global configuration table, to look for missing keys if the key is not found
@@ -219,16 +230,33 @@ local function configure(config)
 	return config
 end
 
--- Setup global configuration.
----@param config table
-function M.setup(config)
-	config = configure(config)
-	-- M.config.global = config
+-- Auto-initialise on module load.
+-- Configuration is read from vim.g.pretty_fold_opts (set before the plugin loads).
+-- vim.g cannot hold Lua functions; for sections with custom function components
+-- the ft sub-table supports any table-serialisable option.
+do
+	local g = type(vim.g.pretty_fold_opts) == "table" and vim.deepcopy(vim.g.pretty_fold_opts) or {}
+
+	-- Extract per-filetype config; the ft key is not a fold config key.
+	local ft_opts = type(g.ft) == "table" and g.ft or {}
+	g.ft = nil
+
+	-- Global foldtext.
+	local global_cfg = configure(g)
 	M.foldtext.global = function()
-		return fold_text(config)
+		return fold_text(global_cfg)
 	end
 	vim.o.foldtext = 'v:lua.require("pretty-fold").foldtext.global()'
 
+	-- Per-filetype foldtext.
+	for ft, ft_config in pairs(ft_opts) do
+		local ft_cfg = configure(type(ft_config) == "table" and ft_config or {})
+		M.foldtext[ft] = function()
+			return fold_text(ft_cfg)
+		end
+	end
+
+	-- Switch foldtext on every buffer/window enter.
 	vim.api.nvim_create_autocmd("BufWinEnter", {
 		callback = function()
 			local filetype = vim.bo.filetype
@@ -242,19 +270,6 @@ function M.setup(config)
 			end
 		end,
 	})
-end
-
--- Setup filetype specific configuration.
----@param filetype string
----@param config table
-function M.ft_setup(filetype, config)
-	if not M.foldtext[filetype] then
-		config = configure(config)
-		-- M.config[filetype] = config
-		M.foldtext[filetype] = function()
-			return fold_text(config)
-		end
-	end
 end
 
 return M
