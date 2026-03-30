@@ -10,17 +10,54 @@ is supported.
 
 https://user-images.githubusercontent.com/13056013/148261501-56677c8f-24a7-4c45-b008-8c1863bf06e8.mp4
 
-## Installation and quickstart
+## Installation
 
-Installation and setup example with [lazy.nvim](https://github.com/folke/lazy.nvim):
+### vim.pack (Neovim 0.12+)
+
+The plugin auto-initialises on load — no `setup()` call needed.
 
 ```lua
-{
-  'e-roux/pretty-fold.nvim',
-  config = function()
-    require('pretty-fold').setup()
-  end,
+-- In your init.lua, set options BEFORE adding the plugin:
+
+---@module 'pretty-fold'
+---@type PrettyFold.Config
+vim.g.pretty_fold_opts = {
+  fill_char = '•',
+  process_comment_signs = 'spaces',
 }
+
+vim.pack.add('e-roux/pretty-fold.nvim')
+```
+
+Default configuration is applied when `vim.g.pretty_fold_opts` is absent or `nil`.
+
+> **Note:** `vim.g` does not support Lua functions. Use the string-based
+> [built-in components](#built-in-components) in `sections`. The default
+> configuration works without any options set.
+
+### Filetype-specific configuration
+
+Pass a `ft` sub-table keyed by filetype:
+
+```lua
+vim.g.pretty_fold_opts = {
+  fill_char = '•',
+  ft = {
+    lua = {
+      matchup_patterns = {
+        { '^%s*do$',      'end' },
+        { '^%s*if',       'end' },
+        { '^%s*for',      'end' },
+        { 'function%s*%(', 'end' },
+        { '{', '}' },
+        { '%(', ')' },
+        { '%[', ']' },
+      },
+    },
+  },
+}
+
+vim.pack.add('e-roux/pretty-fold.nvim')
 ```
 
 ## Foldtext configuration
@@ -230,46 +267,19 @@ If `process_comment_signs = 'spaces'` is set, the output will be
 
 ### Setup for particular filetype
 
-This plugin provides two setup functions.
+Pass per-filetype options inside the `ft` sub-table of `vim.g.pretty_fold_opts`
+(see [Filetype-specific configuration](#filetype-specific-configuration) above).
 
-1) The first one setup configuration which will be used for all filetypes for
-   which you doesn't set their own configuration.
-
-   ```lua
-   require('pretty-fold').setup(config: table)
-   ```
-
-2) The second one allows to setup filetype specific configuration:
-
-   ```lua
-   require('pretty-fold').ft_setup(filtype: string, config: table)
-   ```
-
-#### Example of ready to use foldtext configuration only for lua files
-
-```lua
-require('pretty-fold').ft_setup('lua', {
-   matchup_patterns = {
-      { '^%s*do$', 'end' }, -- do ... end blocks
-      { '^%s*if', 'end' },  -- if ... end
-      { '^%s*for', 'end' }, -- for
-      { 'function%s*%(', 'end' }, -- 'function( or 'function (''
-      {  '{', '}' },
-      { '%(', ')' }, -- % to escape lua pattern char
-      { '%[', ']' }, -- % to escape lua pattern char
-   },
-}
-```
-
-#### `ft_ignore` options
+#### `ft_ignore`
 **default:** `{ 'neorg' }`
 
-Filetypes to be ignored.
+Filetypes where pretty-fold does nothing. Pass it at the top level:
 
-`ft_ignore` is a unique option. It exists only in a single copy for all global
-and filetype specific configurations. You can pass it in any function
-(`setup()` or `ft_setup()`) and all this values will be collected in this one
-single value.
+```lua
+vim.g.pretty_fold_opts = {
+  ft_ignore = { 'neorg', 'markdown' },
+}
+```
 
 
 ### Foldmethod specific configuration
@@ -287,42 +297,36 @@ table.
 Example:
 
 ```lua
-require('pretty-fold').setup({
-    global = {...}, -- global config table for all foldmethods
-    marker = { process_comment_signs = 'spaces' },
-    expr   = { process_comment_signs = false },
-})
+vim.g.pretty_fold_opts = {
+  global = {}, -- global config table for all foldmethods
+  marker = { process_comment_signs = 'spaces' },
+  expr   = { process_comment_signs = false },
+}
 ```
 
 ### Examples
 
 ```lua
-require('pretty-fold').setup{
-   keep_indentation = false,
-   fill_char = '•',
-   sections = {
-      left = {
-         '+', function() return string.rep('-', vim.v.foldlevel) end,
-         ' ', 'number_of_folded_lines', ':', 'content',
-      }
-   }
+-- Minimal: just override fill_char and left sections (no functions needed).
+vim.g.pretty_fold_opts = {
+  keep_indentation = false,
+  fill_char = '•',
+  sections = {
+    left = { '+', ' ', 'number_of_folded_lines', ':', 'content' },
+  },
 }
 ```
 
 ![image](https://user-images.githubusercontent.com/13056013/148228541-8275f7c7-973a-4cbd-bf9b-4b1ea7e2cc1c.png)
 
 ```lua
-require('pretty-fold').setup{
-   keep_indentation = false,
-   fill_char = '━',
-   sections = {
-      left = {
-         '━ ', function() return string.rep('*', vim.v.foldlevel) end, ' ━┫', 'content', '┣'
-      },
-      right = {
-         '┫ ', 'number_of_folded_lines', ': ', 'percentage', ' ┣━━',
-      }
-   }
+vim.g.pretty_fold_opts = {
+  keep_indentation = false,
+  fill_char = '━',
+  sections = {
+    left  = { '━ ', ' ━┫', 'content', '┣' },
+    right = { '┫ ', 'number_of_folded_lines', ': ', 'percentage', ' ┣━━' },
+  },
 }
 ```
 
@@ -331,17 +335,19 @@ require('pretty-fold').setup{
 #### Configuration for C++ to get nice foldtext for Doxygen comments
 
 ```lua
-require('pretty-fold').ft_setup('cpp', {
-   process_comment_signs = false,
-   comment_signs = {
-      '/**', -- C++ Doxygen comments
-   },
-   stop_words = {
-      -- ╟─ "*" ──╭───────╮── "@brief" ──╭───────╮──╢
-      --          ╰─ WSP ─╯              ╰─ WSP ─╯
-      '%*%s*@brief%s*',
-   },
-})
+vim.g.pretty_fold_opts = {
+  ft = {
+    cpp = {
+      process_comment_signs = false,
+      comment_signs = {
+        '/**', -- C++ Doxygen comments
+      },
+      stop_words = {
+        '%*%s*@brief%s*',
+      },
+    },
+  },
+}
 ```
 
 ![image](https://user-images.githubusercontent.com/13056013/149036027-2fa5d85b-5525-4d54-b69f-07298f2422e3.png)

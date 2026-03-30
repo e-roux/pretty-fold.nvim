@@ -1,38 +1,34 @@
- local pf = require('pretty-fold')
- local components = require('pretty-fold.components')
- local stub = require('luassert.stub')
- 
- describe('pretty-fold fold_text pcall protection', function()
-   it('returns placeholder when component errors', function()
-     -- Backup original component if present
-     local orig = components.right
- 
-     -- Create a component that errors
-     components.right = function()
-       error('boom!')
-     end
- 
-     -- Stub vim.notify to silence output and assert it was called
-     local notify_stub = stub(vim, 'notify')
- 
-     -- Setup a filetype-specific foldtext that uses the 'right' component
-     pf.ft_setup('pcall_ft', { sections = { right = {'right'} } })
- 
-     local ok, out = pcall(function()
-       return pf.foldtext.pcall_ft()
-     end)
- 
-     assert.is_true(ok)
-     -- Expect the output to contain the error placeholder inserted by our implementation
-     assert.is_true(type(out) == 'string')
-     assert.is_true(string.find(out, '<pretty%-fold:error>') ~= nil)
- 
-     -- Ensure vim.notify was called once for the component error
-     assert.stub(notify_stub).was_called(1)
- 
-     -- Revert the stub and restore original component
-     notify_stub:revert()
-     components.right = orig
-   end)
- end)
+local components = require("pretty-fold.components")
+local stub = require("luassert.stub")
+
+describe("pretty-fold / pcall protection in fold_text", function()
+	it("returns placeholder string when a component errors", function()
+		local orig = components.right
+
+		-- Inject a broken component.
+		components.right = function()
+			error("boom!")
+		end
+
+		local notify_stub = stub(vim, "notify")
+
+		-- Reload with a config that exercises the broken component.
+		package.loaded["pretty-fold"] = nil
+		vim.g.pretty_fold_opts = { sections = { right = { "right" } } }
+		local pf = require("pretty-fold")
+
+		local ok, out = pcall(pf.foldtext.global)
+
+		assert.is_true(ok)
+		assert.is_string(out)
+		assert.is_truthy(out:find("<pretty%-fold:error>"))
+		assert.stub(notify_stub).was_called(1)
+
+		-- Cleanup
+		notify_stub:revert()
+		components.right = orig
+		package.loaded["pretty-fold"] = nil
+		vim.g.pretty_fold_opts = nil
+	end)
+end)
  
