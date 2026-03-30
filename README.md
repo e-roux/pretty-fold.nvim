@@ -1,8 +1,8 @@
 # Pretty Fold
 
-> :warning: This is a personal fork of `pretty-fold`.
+> :warning: This is a personal fork of [`anuvyklack/pretty-fold.nvim`](https://github.com/anuvyklack/pretty-fold.nvim) (upstream archived).
 >
-> Neovim v0.10 or higher is required
+> **Neovim v0.10 or higher is required** (`vim.iter` API)
 
 **Pretty Fold** is a lua plugin for Neovim which provides framework for easy
 foldtext customization. Filetype specific and foldmethod specific configuration
@@ -12,13 +12,14 @@ https://user-images.githubusercontent.com/13056013/148261501-56677c8f-24a7-4c45-
 
 ## Installation and quickstart
 
-Installation and setup example with [packer](https://github.com/wbthomason/packer.nvim):
+Installation and setup example with [lazy.nvim](https://github.com/folke/lazy.nvim):
 
 ```lua
-use{ 'anuvyklack/pretty-fold.nvim',
-   config = function()
-      require('pretty-fold').setup()
-   end
+{
+  'e-roux/pretty-fold.nvim',
+  config = function()
+    require('pretty-fold').setup()
+  end,
 }
 ```
 
