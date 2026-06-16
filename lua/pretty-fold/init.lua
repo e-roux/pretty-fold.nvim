@@ -20,7 +20,9 @@ ffi.cdef([[
 ---@field process_comment_signs string|boolean How to process comment signs in the fold string
 ---@field comment_signs table Additional comment signs to consider
 ---@field stop_words table Patterns to remove from the content fold text section
---@field sections table Sections of the fold line
+---@field sections table Sections of the fold line. Each section is a list of components.
+---A component can be a string (component name), a function(config): string|chunk|chunks,
+---or a table { name_or_func, highlight_group }.
 ---@field add_close_pattern boolean|string Add close pattern to the fold line
 ---@field matchup_patterns table Patterns to match for folding
 ---@field ft_ignore table File types to ignore
@@ -94,8 +96,8 @@ for _, ft in ipairs(default_config.ft_ignore) do
 	M.ft_ignore[ft] = true
 end
 
--- The main function which produses the string which will be shown
--- in the fold line.
+-- The main function which produces the fold text, returning either a string
+-- or a list of { text, highlight } chunks (Neovim 0.10+).
 ---@param config table
 local function fold_text(config)
 	config = config[wo.foldmethod]
@@ -104,21 +106,42 @@ local function fold_text(config)
 
 	-- Get the text of all components of the fold string.
 	for _, lr in ipairs({ "left", "right" }) do
-		for _, sec_name in ipairs(config.sections[lr] or {}) do
+		for _, item in ipairs(config.sections[lr] or {}) do
+			local sec_name, hl
+			if type(item) == "table" then
+				sec_name, hl = item[1], item[2]
+			else
+				sec_name = item
+			end
+
 			local sec = require("pretty-fold.components")[sec_name]
+			local out
 			if vim.is_callable(sec) then
-				local ok, out = pcall(sec, config)
+				local ok, res = pcall(sec, config)
 				if not ok then
 					vim.notify(
-						string.format("pretty-fold: component '%s' error: %s", tostring(sec_name), tostring(out)),
+						string.format("pretty-fold: component '%s' error: %s", tostring(sec_name), tostring(res)),
 						vim.log.levels.ERROR
 					)
-					table.insert(r[lr], "<pretty-fold:error>")
+					out = "<pretty-fold:error>"
 				else
-					table.insert(r[lr], out)
+					out = res
 				end
 			else
-				table.insert(r[lr], sec)
+				out = sec
+			end
+
+			if type(out) == "string" then
+				table.insert(r[lr], { out, hl })
+			elseif type(out) == "table" then
+				-- Handle chunk or list of chunks
+				if type(out[1]) == "string" and (type(out[2]) == "string" or out[2] == nil) then
+					table.insert(r[lr], { out[1], hl or out[2] })
+				else
+					for _, chunk in ipairs(out) do
+						table.insert(r[lr], chunk)
+					end
+				end
 			end
 		end
 	end
@@ -148,7 +171,10 @@ local function fold_text(config)
 
 		-- 3) Conservative heuristic fallback
 		local w = 0
-		w = w + (tonumber(vim.wo.foldcolumn) or 0)
+		local fc = vim.wo.foldcolumn
+		if not fc:match("^auto") then
+			w = w + (tonumber(fc) or 0)
+		end
 		if vim.wo.number or vim.wo.relativenumber then
 			local lines = api.nvim_buf_line_count(0)
 			local digits = #tostring(lines)
@@ -165,17 +191,28 @@ local function fold_text(config)
 		return w
 	end
 
-	local gutter_width = compute_gutter_width()
+	local function get_chunks_width(chunks)
+		local w = 0
+		for _, chunk in ipairs(chunks) do
+			w = w + fn.strdisplaywidth(chunk[1])
+		end
+		return w
+	end
 
+	local gutter_width = compute_gutter_width()
 	local visible_win_width = api.nvim_win_get_width(0) - gutter_width
 
-	-- The summation length of all components of the fold text string.
-	local fold_text_str = table.concat(vim.iter(vim.tbl_values(r)):flatten():totable())
-	local fold_text_len = fn.strdisplaywidth(fold_text_str)
+	local left_width = get_chunks_width(r.left)
+	local right_width = get_chunks_width(r.right)
+	local fold_text_len = left_width + right_width
 
-	r.expansion_str = string.rep(config.fill_char, visible_win_width - fold_text_len)
+	r.expansion_str = string.rep(config.fill_char, math.max(0, visible_win_width - fold_text_len))
 
-	return table.concat(vim.iter({ r.left, r.expansion_str, r.right }):flatten():totable())
+	local res = {}
+	vim.list_extend(res, r.left)
+	table.insert(res, { r.expansion_str, "Folded" })
+	vim.list_extend(res, r.right)
+	return res
 end
 
 ---Make a ready to use config table with all keys for all foldmethos from the

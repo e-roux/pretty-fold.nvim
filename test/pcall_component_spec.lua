@@ -20,8 +20,15 @@ describe("pretty-fold / pcall protection in fold_text", function()
 		local ok, out = pcall(pf.foldtext.global)
 
 		assert.is_true(ok)
-		assert.is_string(out)
-		assert.is_truthy(out:find("<pretty%-fold:error>"))
+		assert.is_table(out)
+		local found = false
+		for _, chunk in ipairs(out) do
+			if chunk[1]:find("<pretty%-fold:error>") then
+				found = true
+				break
+			end
+		end
+		assert.is_true(found)
 		assert.stub(notify_stub).was_called(1)
 
 		-- Cleanup
