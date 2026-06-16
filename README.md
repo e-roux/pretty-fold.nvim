@@ -235,10 +235,6 @@ vim.g.pretty_fold_opts = {
 }
 ```
 
-## Preview
-
-Preview module have been moved into separate [plugin](https://github.com/anuvyklack/fold-preview.nvim).
-
 ## Additional information
 
 Check ['fillchars'](https://neovim.io/doc/user/options.html#'fillchars')
