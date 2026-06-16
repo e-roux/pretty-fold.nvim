@@ -132,13 +132,16 @@ local function fold_text(config)
 			end
 
 			if type(out) == "string" then
-				table.insert(r[lr], { out, hl })
+				table.insert(r[lr], { out, hl or (sec_name == "content" and "Normal" or "Folded") })
 			elseif type(out) == "table" then
 				-- Handle chunk or list of chunks
 				if type(out[1]) == "string" and (type(out[2]) == "string" or out[2] == nil) then
-					table.insert(r[lr], { out[1], hl or out[2] })
+					table.insert(r[lr], { out[1], hl or out[2] or (sec_name == "content" and "Normal" or "Folded") })
 				else
 					for _, chunk in ipairs(out) do
+						if chunk[2] == nil then
+							chunk[2] = (hl or (sec_name == "content" and "Normal" or "Folded"))
+						end
 						table.insert(r[lr], chunk)
 					end
 				end
