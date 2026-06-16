@@ -1,6 +1,6 @@
 # Pretty Fold
 
-> :warning: This is a personal fork of [`anuvyklack/pretty-fold.nvim`](https://github.com/anuvyklack/pretty-fold.nvim) (upstream archived).
+> :warning: This is a personal fork of [`anuvyklack/pretty-fold.nvim`](https://github.com/anuvyklack/pretty-fold.nvim).
 >
 > **Neovim v0.12 or higher is required** (Modern `foldtext` List return API)
 
