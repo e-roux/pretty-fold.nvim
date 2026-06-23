@@ -96,6 +96,31 @@ for _, ft in ipairs(default_config.ft_ignore) do
 	M.ft_ignore[ft] = true
 end
 
+-- Set up PrettyFoldMetadata and PrettyFoldContent highlight groups
+local function setup_highlight()
+	-- Inherit from Folded
+	local folded_hl = vim.api.nvim_get_hl(0, { name = "Folded", link = false })
+	-- Clear background
+	folded_hl.bg = "none"
+	folded_hl.ctermbg = "none"
+	vim.api.nvim_set_hl(0, "PrettyFoldMetadata", folded_hl)
+
+	-- Inherit from Normal
+	local normal_hl = vim.api.nvim_get_hl(0, { name = "Normal", link = false })
+	-- Clear background
+	normal_hl.bg = "none"
+	normal_hl.ctermbg = "none"
+	vim.api.nvim_set_hl(0, "PrettyFoldContent", normal_hl)
+end
+
+-- Run once on startup
+setup_highlight()
+
+-- Autocmd to re-run highlight setup on color scheme change
+vim.api.nvim_create_autocmd("ColorScheme", {
+	callback = setup_highlight,
+})
+
 -- The main function which produces the fold text, returning either a string
 -- or a list of { text, highlight } chunks (Neovim 0.10+).
 ---@param config table
@@ -131,14 +156,19 @@ local function fold_text(config)
 				out = sec
 			end
 
+			local default_hl = (sec_name == "content" and "PrettyFoldContent" or "PrettyFoldMetadata")
+
 			if type(out) == "string" then
-				table.insert(r[lr], { out, hl })
+				table.insert(r[lr], { out, hl or default_hl })
 			elseif type(out) == "table" then
 				-- Handle chunk or list of chunks
 				if type(out[1]) == "string" and (type(out[2]) == "string" or out[2] == nil) then
-					table.insert(r[lr], { out[1], hl or out[2] })
+					table.insert(r[lr], { out[1], hl or out[2] or default_hl })
 				else
 					for _, chunk in ipairs(out) do
+						if chunk[2] == nil then
+							chunk[2] = (hl or default_hl)
+						end
 						table.insert(r[lr], chunk)
 					end
 				end
