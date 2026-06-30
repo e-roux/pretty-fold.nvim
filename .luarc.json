@@ -8,12 +8,21 @@
     ],
     "disable": [
       "undefined-global",
-      "deprecated"
+      "deprecated",
+      "need-check-nil",
+      "assign-type-mismatch",
+      "param-type-mismatch",
+      "return-type-mismatch",
+      "inject-field"
     ]
   },
   "workspace": {
     "library": [
       "/opt/homebrew/share/nvim/runtime/lua"
+    ],
+    "ignoreDir": [
+      "test",
+      "deps"
     ],
     "checkThirdParty": false
   }

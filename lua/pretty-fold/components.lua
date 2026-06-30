@@ -168,6 +168,7 @@ function M.content(config)
 			local found = {}
 
 			local start
+			---@type integer|nil
 			local stop = 0
 			while stop do
 				start, stop = str:find(pat[1], stop + 1)
@@ -191,6 +192,7 @@ function M.content(config)
 
 			local num_op = #found -- number of opening patterns
 			if num_op > 0 then
+				---@type integer|nil
 				stop = 0
 				while stop do
 					start, stop = str:find(vim.pesc(pat[2]), stop + 1)
@@ -282,16 +284,16 @@ function M.content(config)
 
 			local ellipsis = " ... "
 
-			str = { content, ellipsis }
+			local str_parts = { content, ellipsis }
 			for i = #found_patterns, 1, -1 do
-				table.insert(str, found_patterns[i].pat[2])
+				table.insert(str_parts, found_patterns[i].pat[2])
 			end
 
 			if closing_comment_str then
-				table.insert(str, closing_comment_str)
+				table.insert(str_parts, closing_comment_str)
 			end
 
-			content = table.concat(str)
+			content = table.concat(str_parts)
 
 			local brackets = {
 				{ "{ %.%.%. }", "{...}" }, -- { ... }  ->  {...}
@@ -391,12 +393,13 @@ function M.percentage()
 	local folded_lines = v.foldend - v.foldstart + 1 -- The number of folded lines.
 	local total_lines = vim.api.nvim_buf_line_count(0)
 	local pnum = math.floor(100 * folded_lines / total_lines)
+	local pnum_str = tostring(pnum)
 	if pnum == 0 then
-		pnum = tostring(100 * folded_lines / total_lines):sub(2, 3)
+		pnum_str = tostring(100 * folded_lines / total_lines):sub(2, 3)
 	elseif pnum < 10 then
-		pnum = " " .. pnum
+		pnum_str = " " .. pnum
 	end
-	return pnum .. "%"
+	return pnum_str .. "%"
 end
 
 return setmetatable(M, {
