@@ -1,16 +1,21 @@
 local v = vim.v
 local fn = vim.fn
 local util = require("pretty-fold.util")
+local hl_mod = require("pretty-fold.highlight")
 local M = {
 	cache = {},
 }
 
 ---@param config? table
----@return string content modified first nonblank line of the folded region
+---@return { [1]: string, [2]: string }[] chunks with per-token highlight groups
 function M.content(config)
-	---The content of the 'content' section.
+	-- Capture the raw fold-start line *before* any processing so that byte
+	-- offsets from treesitter / syntax captures remain valid.
+	local raw_line = fn.getline(v.foldstart)
+
+	---The content of the 'content' section (mutated below).
 	---@type string
-	local content = fn.getline(v.foldstart)
+	local content = raw_line
 
 	local filetype = vim.bo.filetype
 
@@ -163,6 +168,7 @@ function M.content(config)
 			local found = {}
 
 			local start
+			---@type integer|nil
 			local stop = 0
 			while stop do
 				start, stop = str:find(pat[1], stop + 1)
@@ -186,6 +192,7 @@ function M.content(config)
 
 			local num_op = #found -- number of opening patterns
 			if num_op > 0 then
+				---@type integer|nil
 				stop = 0
 				while stop do
 					start, stop = str:find(vim.pesc(pat[2]), stop + 1)
@@ -277,16 +284,16 @@ function M.content(config)
 
 			local ellipsis = " ... "
 
-			str = { content, ellipsis }
+			local str_parts = { content, ellipsis }
 			for i = #found_patterns, 1, -1 do
-				table.insert(str, found_patterns[i].pat[2])
+				table.insert(str_parts, found_patterns[i].pat[2])
 			end
 
 			if closing_comment_str then
-				table.insert(str, closing_comment_str)
+				table.insert(str_parts, closing_comment_str)
 			end
 
-			content = table.concat(str)
+			content = table.concat(str_parts)
 
 			local brackets = {
 				{ "{ %.%.%. }", "{...}" }, -- { ... }  ->  {...}
@@ -369,7 +376,11 @@ function M.content(config)
 		content = content:gsub(blank_substr, " " .. string.rep(config.fill_char, #blank_substr - 2) .. " ", 1)
 	end
 
-	return content
+	-- Return highlight-aware chunks so that the fold-start line keeps its
+	-- original treesitter / syntax colours instead of the flat `Folded` group.
+	local bufnr = vim.api.nvim_get_current_buf()
+	local row = v.foldstart - 1 -- 0-indexed
+	return hl_mod.line_chunks(content, raw_line, bufnr, row, "PrettyFoldContent")
 end
 
 ---@return string
@@ -382,12 +393,13 @@ function M.percentage()
 	local folded_lines = v.foldend - v.foldstart + 1 -- The number of folded lines.
 	local total_lines = vim.api.nvim_buf_line_count(0)
 	local pnum = math.floor(100 * folded_lines / total_lines)
+	local pnum_str = tostring(pnum)
 	if pnum == 0 then
-		pnum = tostring(100 * folded_lines / total_lines):sub(2, 3)
+		pnum_str = tostring(100 * folded_lines / total_lines):sub(2, 3)
 	elseif pnum < 10 then
-		pnum = " " .. pnum
+		pnum_str = " " .. pnum
 	end
-	return pnum .. "%"
+	return pnum_str .. "%"
 end
 
 return setmetatable(M, {

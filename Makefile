@@ -29,7 +29,7 @@ lint:
 	$(LUACHECK) $(LUA_DIR)/ --globals vim
 
 typecheck:
-	$(LLS) --check $(LUA_DIR)/ 2>&1 | grep -v "^$$" || true
+	$(LLS) --check . 2>&1 | grep -v "^$$" || true
 
 test.unit:
 	$(NVIM) --headless -u test/minimal_init.lua \

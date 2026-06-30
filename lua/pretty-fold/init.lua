@@ -11,22 +11,22 @@ ffi.cdef([[
 
 --- Default configuration for pretty-fold.nvim
 ---@class DefaultConfig
----@field fill_char string Character used to fill the fold line
----@field remove_fold_markers boolean Remove fold markers from the fold string
----@field keep_indentation boolean Keep the indentation of the content of the fold string
+---@field fill_char? string Character used to fill the fold line
+---@field remove_fold_markers? boolean Remove fold markers from the fold string
+---@field keep_indentation? boolean Keep the indentation of the content of the fold string
 ---|"'delete'" Remove all comment signs from the fold string
 ---|"'spaces'" Replace all comment signs with equal number of spaces
 ---|false Do nothing with comment signs
----@field process_comment_signs string|boolean How to process comment signs in the fold string
----@field comment_signs table Additional comment signs to consider
----@field stop_words table Patterns to remove from the content fold text section
----@field sections table Sections of the fold line. Each section is a list of components.
+---@field process_comment_signs? string|boolean How to process comment signs in the fold string
+---@field comment_signs? table Additional comment signs to consider
+---@field stop_words? table Patterns to remove from the content fold text section
+---@field sections? table Sections of the fold line. Each section is a list of components.
 ---A component can be a string (component name), a function(config): string|chunk|chunks,
 ---or a table { name_or_func, highlight_group }.
----@field add_close_pattern boolean|string Add close pattern to the fold line
----@field matchup_patterns table Patterns to match for folding
----@field ft_ignore table File types to ignore
----@field ft table<string,DefaultConfig> Per-filetype configuration sub-tables
+---@field add_close_pattern? boolean|string Add close pattern to the fold line
+---@field matchup_patterns? table Patterns to match for folding
+---@field ft_ignore? table File types to ignore
+---@field ft? table<string,DefaultConfig> Per-filetype configuration sub-tables
 
 ---@alias PrettyFold.Config DefaultConfig
 
@@ -166,10 +166,11 @@ local function fold_text(config)
 					table.insert(r[lr], { out[1], hl or out[2] or default_hl })
 				else
 					for _, chunk in ipairs(out) do
-						if chunk[2] == nil then
-							chunk[2] = (hl or default_hl)
-						end
-						table.insert(r[lr], chunk)
+						-- If the section declares an explicit highlight override, apply it
+						-- to every chunk (e.g. { "content", "MyHl" } colours all tokens).
+						-- Otherwise keep the per-token hl already set by the component.
+						local chunk_hl = hl or chunk[2] or default_hl
+						table.insert(r[lr], { chunk[1], chunk_hl })
 					end
 				end
 			end
