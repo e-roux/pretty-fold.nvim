@@ -1,16 +1,21 @@
 local v = vim.v
 local fn = vim.fn
 local util = require("pretty-fold.util")
+local hl_mod = require("pretty-fold.highlight")
 local M = {
 	cache = {},
 }
 
 ---@param config? table
----@return string content modified first nonblank line of the folded region
+---@return { [1]: string, [2]: string }[] chunks with per-token highlight groups
 function M.content(config)
-	---The content of the 'content' section.
+	-- Capture the raw fold-start line *before* any processing so that byte
+	-- offsets from treesitter / syntax captures remain valid.
+	local raw_line = fn.getline(v.foldstart)
+
+	---The content of the 'content' section (mutated below).
 	---@type string
-	local content = fn.getline(v.foldstart)
+	local content = raw_line
 
 	local filetype = vim.bo.filetype
 
@@ -369,7 +374,11 @@ function M.content(config)
 		content = content:gsub(blank_substr, " " .. string.rep(config.fill_char, #blank_substr - 2) .. " ", 1)
 	end
 
-	return content
+	-- Return highlight-aware chunks so that the fold-start line keeps its
+	-- original treesitter / syntax colours instead of the flat `Folded` group.
+	local bufnr = vim.api.nvim_get_current_buf()
+	local row = v.foldstart - 1 -- 0-indexed
+	return hl_mod.line_chunks(content, raw_line, bufnr, row, "PrettyFoldContent")
 end
 
 ---@return string

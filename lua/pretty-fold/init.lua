@@ -166,10 +166,11 @@ local function fold_text(config)
 					table.insert(r[lr], { out[1], hl or out[2] or default_hl })
 				else
 					for _, chunk in ipairs(out) do
-						if chunk[2] == nil then
-							chunk[2] = (hl or default_hl)
-						end
-						table.insert(r[lr], chunk)
+						-- If the section declares an explicit highlight override, apply it
+						-- to every chunk (e.g. { "content", "MyHl" } colours all tokens).
+						-- Otherwise keep the per-token hl already set by the component.
+						local chunk_hl = hl or chunk[2] or default_hl
+						table.insert(r[lr], { chunk[1], chunk_hl })
 					end
 				end
 			end
